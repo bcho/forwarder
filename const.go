@@ -1,6 +1,8 @@
 package forwarder
 
 import (
+	"io"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
@@ -27,6 +29,10 @@ type PodOption struct {
 	LocalPort int    // the local port for forwarding
 	PodPort   int    // the k8s pod port
 	Pod       v1.Pod // the k8s pod metadata
+
+	Stdout io.Writer
+	Stderr io.Writer
+	Stdin  io.Reader
 }
 
 type Option struct {
@@ -36,6 +42,9 @@ type Option struct {
 	PodName     string // the k8s pod metadata
 	ServiceName string // the k8s service metadata
 	Source      string // the k8s source string, eg: svc/my-nginx-svc po/my-nginx-66b6c48dd5-ttdb2
+	Stdout      io.Writer
+	Stderr      io.Writer
+	Stdin       io.Reader
 }
 
 type Result struct {

@@ -5,11 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
-	"os/signal"
 	"path"
 	"sync"
-	"syscall"
 
 	"golang.org/x/sync/errgroup"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -19,8 +16,6 @@ import (
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 )
-
-var once sync.Once
 
 // It is to forward port whith kubeconfig bytes.
 func WithForwardersEmbedConfig(ctx context.Context, options []*Option, kubeconfigBytes []byte) (*Result, error) {
@@ -66,12 +61,6 @@ func forwarders(ctx context.Context, options []*Option, config *restclient.Confi
 		return nil, err
 	}
 
-	stream := genericclioptions.IOStreams{
-		In:     os.Stdin,
-		Out:    os.Stdout,
-		ErrOut: os.Stderr,
-	}
-
 	carries := make([]*carry, len(podOptions))
 
 	var g errgroup.Group
@@ -80,6 +69,12 @@ func forwarders(ctx context.Context, options []*Option, config *restclient.Confi
 		index := index
 		stopCh := make(chan struct{}, 1)
 		readyCh := make(chan struct{})
+
+		stream := genericclioptions.IOStreams{
+			In:     option.Stdin,
+			Out:    option.Stdout,
+			ErrOut: option.Stderr,
+		}
 
 		req := &portForwardAPodRequest{
 			RestConfig: config,
@@ -104,6 +99,9 @@ func forwarders(ctx context.Context, options []*Option, config *restclient.Confi
 		return nil, err
 	}
 
+	// NOTE: this will leak... :)
+	once := &sync.Once{}
+
 	ret := &Result{
 		Close: func() {
 			once.Do(func() {
@@ -127,17 +125,8 @@ func forwarders(ctx context.Context, options []*Option, config *restclient.Confi
 	}
 
 	ret.Wait = func() {
-		sigs := make(chan os.Signal, 1)
-		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-		<-sigs
-		fmt.Println("Bye...")
-		ret.Close()
+		// no-op
 	}
-
-	go func() {
-		<-ctx.Done()
-		ret.Close()
-	}()
 
 	return ret, nil
 }

@@ -3,6 +3,7 @@ package forwarder
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"golang.org/x/sync/errgroup"
@@ -113,8 +114,6 @@ func handleOptions(ctx context.Context, options []*Option, config *restclient.Co
 			}
 			pod := pods.Items[0]
 
-			fmt.Printf("Forwarding service: %v to pod %v ...\n", option.ServiceName, pod.Name)
-
 			podOptions[index] = buildPodOption(option, &pod)
 			return nil
 		})
@@ -131,7 +130,7 @@ func buildPodOption(option *Option, pod *v1.Pod) *PodOption {
 		option.RemotePort = int(pod.Spec.Containers[0].Ports[0].ContainerPort)
 	}
 
-	return &PodOption{
+	rv := &PodOption{
 		LocalPort: option.LocalPort,
 		PodPort:   option.RemotePort,
 		Pod: v1.Pod{
@@ -140,5 +139,19 @@ func buildPodOption(option *Option, pod *v1.Pod) *PodOption {
 				Namespace: pod.Namespace,
 			},
 		},
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+		Stdin:  os.Stdin,
 	}
+	if option.Stdout != nil {
+		rv.Stdout = option.Stdout
+	}
+	if option.Stderr != nil {
+		rv.Stderr = option.Stderr
+	}
+	if option.Stdin != nil {
+		rv.Stdin = option.Stdin
+	}
+
+	return rv
 }
